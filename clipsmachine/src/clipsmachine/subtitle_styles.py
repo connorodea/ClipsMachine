@@ -118,8 +118,8 @@ def create_subtitle_style(
     shadow_depth: int = 3,
     blur: int = 0,
     glow: bool = False,
-    alignment: int = 5,
-    margin_v: int = 50,
+    alignment: int = 5,  # 5 = center of screen (both horizontal and vertical)
+    margin_v: int = 0,   # No margin for center alignment
 ) -> SubtitleStyle:
     """
     Create a SubtitleStyle configuration.
@@ -209,6 +209,7 @@ def style_to_force_style(style: SubtitleStyle) -> str:
         f"Outline={style.outline_width}",
         f"Shadow={style.shadow_depth}",
         f"Alignment={style.alignment}",
+        f"MarginV={style.margin_v}",
     ]
 
     if style.blur > 0:
