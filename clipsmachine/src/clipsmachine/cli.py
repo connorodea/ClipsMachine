@@ -6,6 +6,7 @@ from .metadata import enhance_manifest
 from .uploader import upload_clips_for_video
 from .config import OUTPUT_ROOT
 from .subtitle_styles import get_available_fonts
+from .brand_templates import BrandTemplate
 
 
 def cmd_run(args: argparse.Namespace) -> None:
@@ -31,11 +32,27 @@ def cmd_run(args: argparse.Namespace) -> None:
         'glow': getattr(args, 'glow', False),
     }
 
+    aspect_ratio = getattr(args, 'aspect_ratio', '9:16')
+
+    # Build brand template from args
+    brand_template = None
+    if getattr(args, 'logo', None):
+        brand_template = BrandTemplate(
+            logo_path=args.logo,
+            logo_position=getattr(args, 'logo_position', 'top-right'),
+            logo_size=getattr(args, 'logo_size', 15),
+            logo_opacity=getattr(args, 'logo_opacity', 1.0),
+            intro_path=getattr(args, 'intro', None),
+            outro_path=getattr(args, 'outro', None),
+        )
+
     clips = process_video(
         url,
         enable_subtitles=enable_subtitles,
         subtitle_type=subtitle_type,
-        style_config=style_config
+        style_config=style_config,
+        aspect_ratio=aspect_ratio,
+        brand_template=brand_template
     )
     print(f"[1/3] Generated {len(clips)} clips.")
 
@@ -85,11 +102,27 @@ def cmd_clip_only(args: argparse.Namespace) -> None:
         'glow': getattr(args, 'glow', False),
     }
 
+    aspect_ratio = getattr(args, 'aspect_ratio', '9:16')
+
+    # Build brand template from args
+    brand_template = None
+    if getattr(args, 'logo', None):
+        brand_template = BrandTemplate(
+            logo_path=args.logo,
+            logo_position=getattr(args, 'logo_position', 'top-right'),
+            logo_size=getattr(args, 'logo_size', 15),
+            logo_opacity=getattr(args, 'logo_opacity', 1.0),
+            intro_path=getattr(args, 'intro', None),
+            outro_path=getattr(args, 'outro', None),
+        )
+
     process_video(
         url,
         enable_subtitles=enable_subtitles,
         subtitle_type=subtitle_type,
-        style_config=style_config
+        style_config=style_config,
+        aspect_ratio=aspect_ratio,
+        brand_template=brand_template
     )
 
 
@@ -227,6 +260,49 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Enable glow effect on text (adds blur).",
     )
+    p_run.add_argument(
+        "--aspect-ratio",
+        choices=["9:16", "1:1", "16:9"],
+        default="9:16",
+        help="Output aspect ratio: 9:16 (Shorts/Reels/TikTok), 1:1 (Instagram), 16:9 (YouTube) (default: 9:16).",
+    )
+    # Brand template options
+    p_run.add_argument(
+        "--logo",
+        type=str,
+        default=None,
+        help="Path to logo image file (PNG with transparency recommended).",
+    )
+    p_run.add_argument(
+        "--logo-position",
+        choices=["top-left", "top-right", "bottom-left", "bottom-right", "center"],
+        default="top-right",
+        help="Logo position on video (default: top-right).",
+    )
+    p_run.add_argument(
+        "--logo-size",
+        type=int,
+        default=15,
+        help="Logo size as percentage of video width, 5-50 (default: 15).",
+    )
+    p_run.add_argument(
+        "--logo-opacity",
+        type=float,
+        default=1.0,
+        help="Logo opacity, 0.0-1.0 (default: 1.0).",
+    )
+    p_run.add_argument(
+        "--intro",
+        type=str,
+        default=None,
+        help="Path to intro video clip (will be prepended to each clip).",
+    )
+    p_run.add_argument(
+        "--outro",
+        type=str,
+        default=None,
+        help="Path to outro video clip (will be appended to each clip).",
+    )
     p_run.set_defaults(func=cmd_run)
 
     # clip
@@ -286,6 +362,49 @@ def build_parser() -> argparse.ArgumentParser:
         "--glow",
         action="store_true",
         help="Enable glow effect on text (adds blur).",
+    )
+    p_clip.add_argument(
+        "--aspect-ratio",
+        choices=["9:16", "1:1", "16:9"],
+        default="9:16",
+        help="Output aspect ratio: 9:16 (Shorts/Reels/TikTok), 1:1 (Instagram), 16:9 (YouTube) (default: 9:16).",
+    )
+    # Brand template options
+    p_clip.add_argument(
+        "--logo",
+        type=str,
+        default=None,
+        help="Path to logo image file (PNG with transparency recommended).",
+    )
+    p_clip.add_argument(
+        "--logo-position",
+        choices=["top-left", "top-right", "bottom-left", "bottom-right", "center"],
+        default="top-right",
+        help="Logo position on video (default: top-right).",
+    )
+    p_clip.add_argument(
+        "--logo-size",
+        type=int,
+        default=15,
+        help="Logo size as percentage of video width, 5-50 (default: 15).",
+    )
+    p_clip.add_argument(
+        "--logo-opacity",
+        type=float,
+        default=1.0,
+        help="Logo opacity, 0.0-1.0 (default: 1.0).",
+    )
+    p_clip.add_argument(
+        "--intro",
+        type=str,
+        default=None,
+        help="Path to intro video clip (will be prepended to each clip).",
+    )
+    p_clip.add_argument(
+        "--outro",
+        type=str,
+        default=None,
+        help="Path to outro video clip (will be appended to each clip).",
     )
     p_clip.set_defaults(func=cmd_clip_only)
 

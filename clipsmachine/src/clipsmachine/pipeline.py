@@ -32,6 +32,13 @@ from .config import (
 from .subtitles import generate_subtitles_for_clip
 from .whisper_transcribe import generate_whisper_subtitles_for_clip
 from .subtitle_styles import create_subtitle_style, style_to_force_style
+from .brand_templates import (
+    BrandTemplate,
+    create_logo_overlay_filter,
+    requires_concat,
+    build_concat_file_list,
+    validate_template,
+)
 
 YDL_OPTS = {
     "format": "mp4/bestaudio/best",
@@ -225,11 +232,16 @@ def cut_clip_ffmpeg(
     output_path: str,
     subtitle_file: str | None = None,
     style_config: Dict[str, Any] | None = None,
+    aspect_ratio: str = "9:16",
+    brand_template: BrandTemplate | None = None,
 ) -> None:
     """
-    Cut a clip from the input video, convert to 9:16 format, and optionally burn in subtitles.
+    Cut a clip from the input video, convert to specified aspect ratio, and optionally burn in subtitles and branding.
 
-    Output format: 1080x1920 (9:16 aspect ratio) for YouTube Shorts, Instagram Reels, TikTok.
+    Supported aspect ratios:
+    - 9:16 (1080x1920) - YouTube Shorts, Instagram Reels, TikTok (default)
+    - 1:1 (1080x1080) - Instagram posts
+    - 16:9 (1920x1080) - Traditional YouTube videos
 
     Args:
         input_video: Path to source video
@@ -238,20 +250,37 @@ def cut_clip_ffmpeg(
         output_path: Where to save the clip
         subtitle_file: Optional path to ASS subtitle file to burn in
         style_config: Optional style configuration dict for subtitle styling
+        aspect_ratio: Output aspect ratio (default: "9:16")
+        brand_template: Optional BrandTemplate for logo overlays and intro/outro
     """
     duration = max(end - start, 1.0)
 
-    # Build video filter for 9:16 format conversion
-    # Scale and crop to 1080x1920 (vertical format for shorts)
+    # Define target dimensions based on aspect ratio
+    aspect_configs = {
+        "9:16": {"width": 1080, "height": 1920, "ratio": 9/16},  # Vertical (Shorts/Reels/TikTok)
+        "1:1": {"width": 1080, "height": 1080, "ratio": 1},      # Square (Instagram)
+        "16:9": {"width": 1920, "height": 1080, "ratio": 16/9},  # Horizontal (YouTube)
+    }
+
+    if aspect_ratio not in aspect_configs:
+        raise ValueError(f"Unsupported aspect ratio: {aspect_ratio}. Choose from: {list(aspect_configs.keys())}")
+
+    config = aspect_configs[aspect_ratio]
+    target_width = config["width"]
+    target_height = config["height"]
+    target_ratio = config["ratio"]
+
+    # Build video filter for aspect ratio conversion
+    # Strategy: Scale and crop to target dimensions while maintaining center focus
     video_filters = [
-        # Scale to fit within 1080x1920, maintaining aspect ratio
-        "scale='if(gt(iw/ih,9/16),1080,-2)':'if(gt(iw/ih,9/16),-2,1920)'",
-        # Pad to exactly 1080x1920 if needed (center the content)
-        "pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black",
-        # If source is wider than 9:16, crop instead
-        "crop='if(gt(iw/ih,9/16),ih*9/16,iw)':'if(gt(iw/ih,9/16),ih,iw*16/9)'",
+        # Scale to fit within target dimensions, maintaining aspect ratio
+        f"scale='if(gt(iw/ih,{target_ratio}),{target_width},-2)':'if(gt(iw/ih,{target_ratio}),-2,{target_height})'",
+        # Pad to exactly target dimensions if needed (center the content)
+        f"pad={target_width}:{target_height}:(ow-iw)/2:(oh-ih)/2:black",
+        # If source is wider than target, crop instead
+        f"crop='if(gt(iw/ih,{target_ratio}),ih*{target_ratio},iw)':'if(gt(iw/ih,{target_ratio}),ih,iw/{target_ratio})'",
         # Final scale to ensure exact dimensions
-        "scale=1080:1920",
+        f"scale={target_width}:{target_height}",
     ]
 
     # Add subtitles filter if provided
@@ -267,9 +296,7 @@ def cut_clip_ffmpeg(
             f"subtitles={subtitle_file}:force_style='{force_style}'"
         )
 
-    vf_string = ",".join(video_filters)
-
-    # Always re-encode for format conversion
+    # Build FFmpeg command
     cmd = [
         "ffmpeg",
         "-y",
@@ -277,10 +304,43 @@ def cut_clip_ffmpeg(
         str(start),
         "-i",
         input_video,
-        "-t",
-        str(duration),
-        "-vf",
-        vf_string,
+    ]
+
+    # Add logo input if brand template with logo is provided
+    use_filter_complex = False
+    if brand_template and brand_template.logo_path:
+        validate_template(brand_template)
+        cmd.extend(["-i", brand_template.logo_path])
+        use_filter_complex = True
+
+    cmd.extend(["-t", str(duration)])
+
+    # Build filter string (either -vf or -filter_complex)
+    if use_filter_complex:
+        # Use filter_complex for logo overlay
+        # First apply aspect ratio conversion, then overlay logo
+        vf_base = ",".join(video_filters)
+
+        # Create logo overlay filter
+        logo_filter = create_logo_overlay_filter(
+            brand_template.logo_path,
+            brand_template.logo_position,
+            brand_template.logo_size,
+            brand_template.logo_opacity,
+            target_width,
+        )
+
+        # Combine: [0:v] aspect conversion [out]; [out][1:v overlay with logo]
+        filter_complex = f"[0:v]{vf_base}[base];{logo_filter}"
+
+        cmd.extend(["-filter_complex", filter_complex])
+    else:
+        # Use simple -vf for aspect ratio conversion and subtitles
+        vf_string = ",".join(video_filters)
+        cmd.extend(["-vf", vf_string])
+
+    # Add encoding options
+    cmd.extend([
         "-c:v",
         "libx264",
         "-preset",
@@ -300,7 +360,7 @@ def cut_clip_ffmpeg(
         "-ar",
         "44100",
         output_path,
-    ]
+    ])
 
     subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
@@ -310,15 +370,19 @@ def process_video(
     enable_subtitles: bool = True,
     subtitle_type: str = "transcription",
     style_config: Dict[str, Any] | None = None,
+    aspect_ratio: str = "9:16",
+    brand_template: BrandTemplate | None = None,
 ) -> List[ClipInfo]:
     """
-    Process a YouTube video: download, generate clips, and optionally add subtitles.
+    Process a YouTube video: download, generate clips, and optionally add subtitles and branding.
 
     Args:
         url: YouTube video URL
         enable_subtitles: Whether to generate and burn in text overlays (default: True)
         subtitle_type: Type of subtitles - "keywords", "transcription", or "both"
         style_config: Optional style configuration dict for subtitle styling
+        aspect_ratio: Output aspect ratio - "9:16" (Shorts), "1:1" (Instagram), "16:9" (YouTube) (default: "9:16")
+        brand_template: Optional BrandTemplate for logo overlays and intro/outro
 
     Returns:
         List of ClipInfo objects
@@ -343,6 +407,7 @@ def process_video(
     # Download video
     print_info(f"Video ID: {video_id}")
     print_info(f"Subtitle Type: {subtitle_type if enable_subtitles else 'None'}")
+    print_info(f"Aspect Ratio: {aspect_ratio}")
     console.print()
 
     with console.status("[bold cyan]Downloading video...", spinner="dots"):
@@ -403,7 +468,7 @@ def process_video(
                         # Full transcription using Whisper
                         # Need to cut the clip first, then transcribe it
                         temp_clip_path = os.path.join(clips_dir, f"temp_{file_name}")
-                        cut_clip_ffmpeg(video_path, start, end, temp_clip_path, subtitle_file=None, style_config=style_config)
+                        cut_clip_ffmpeg(video_path, start, end, temp_clip_path, subtitle_file=None, style_config=style_config, aspect_ratio=aspect_ratio, brand_template=brand_template)
 
                         subtitle_file = generate_whisper_subtitles_for_clip(
                             video_path=temp_clip_path,
@@ -420,7 +485,7 @@ def process_video(
                         # Generate both types - this is advanced, for now just use transcription
                         print(f"[pipeline] 'both' subtitle type not fully implemented yet, using transcription")
                         temp_clip_path = os.path.join(clips_dir, f"temp_{file_name}")
-                        cut_clip_ffmpeg(video_path, start, end, temp_clip_path, subtitle_file=None, style_config=style_config)
+                        cut_clip_ffmpeg(video_path, start, end, temp_clip_path, subtitle_file=None, style_config=style_config, aspect_ratio=aspect_ratio, brand_template=brand_template)
 
                         subtitle_file = generate_whisper_subtitles_for_clip(
                             video_path=temp_clip_path,
@@ -440,12 +505,12 @@ def process_video(
             # For transcription, we already cut a temp clip above, so only cut with subtitles
             if subtitle_type == "transcription" or subtitle_type == "both":
                 if subtitle_file and os.path.exists(subtitle_file):
-                    cut_clip_ffmpeg(video_path, start, end, output_path, subtitle_file, style_config=style_config)
+                    cut_clip_ffmpeg(video_path, start, end, output_path, subtitle_file, style_config=style_config, aspect_ratio=aspect_ratio, brand_template=brand_template)
                 else:
-                    cut_clip_ffmpeg(video_path, start, end, output_path, subtitle_file=None, style_config=style_config)
+                    cut_clip_ffmpeg(video_path, start, end, output_path, subtitle_file=None, style_config=style_config, aspect_ratio=aspect_ratio, brand_template=brand_template)
             else:
                 # For keywords or no subtitles
-                cut_clip_ffmpeg(video_path, start, end, output_path, subtitle_file, style_config=style_config)
+                cut_clip_ffmpeg(video_path, start, end, output_path, subtitle_file, style_config=style_config, aspect_ratio=aspect_ratio, brand_template=brand_template)
 
             title = generate_title(text, idx)
             description = generate_description(url, start, end, text)

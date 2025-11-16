@@ -11,6 +11,7 @@ from .config import (
     MAX_LLM_RETRIES,
     LLM_SLEEP_BETWEEN_CALLS,
 )
+from .virality_score import calculate_virality_score, get_virality_label
 
 
 def _manifest_path(video_id: str) -> str:
@@ -70,6 +71,7 @@ def enhance_single_clip(
     clip: Dict[str, Any],
     channel_positioning: str,
     base_tags: str,
+    enable_virality_score: bool = True,
 ) -> Dict[str, Any]:
     text_preview = clip.get("text_preview", "") or clip.get("description", "")[:300]
     original_title = clip.get("title", "")
@@ -132,6 +134,30 @@ No extra commentary.
 
     clip["title"] = new_title
     clip["description"] = new_description
+
+    # Calculate virality score
+    if enable_virality_score:
+        full_text = clip.get("text_preview", "")
+        duration = clip.get("duration", 0)
+        clip_index = clip.get("clip_index", 0)
+
+        print(f"[metadata] Calculating virality score for clip #{clip_index}...")
+        virality_data = calculate_virality_score(full_text, duration, clip_index)
+
+        clip["virality_score"] = virality_data["virality_score"]
+        clip["virality_label"] = get_virality_label(virality_data["virality_score"])
+        clip["virality_breakdown"] = {
+            "hook_strength": virality_data["hook_strength"],
+            "emotional_impact": virality_data["emotional_impact"],
+            "shareability": virality_data["shareability"],
+            "insights": virality_data["insights"],
+        }
+
+        print(
+            f"[metadata] Virality score: {virality_data['virality_score']}/100 "
+            f"({get_virality_label(virality_data['virality_score'])})"
+        )
+
     return clip
 
 
@@ -141,6 +167,7 @@ def enhance_manifest(
     base_tags: str,
     start_index: int = 1,
     max_clips: int | None = None,
+    enable_virality_score: bool = True,
 ) -> None:
     manifest = load_manifest(video_id)
     if not manifest:
@@ -159,7 +186,7 @@ def enhance_manifest(
     for clip in to_update:
         idx = int(clip.get("clip_index", 0))
         print(f"[metadata] Enhancing clip #{idx}…")
-        enhanced = enhance_single_clip(clip, channel_positioning, base_tags)
+        enhanced = enhance_single_clip(clip, channel_positioning, base_tags, enable_virality_score)
 
         for i, entry in enumerate(manifest):
             if int(entry.get("clip_index", 0)) == idx:
