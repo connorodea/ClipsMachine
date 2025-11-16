@@ -1,0 +1,27 @@
+[project]
+name = "clipsmachine"
+version = "0.1.0"
+description = "Automated YouTube clips generator + uploader"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+  { name = "Connor", email = "you@example.com" }
+]
+
+dependencies = [
+  "yt-dlp",
+  "youtube-transcript-api",
+  "tqdm",
+  "google-api-python-client",
+  "google-auth-oauthlib",
+  "google-auth-httplib2",
+  "openai>=1.0.0",
+  "rich>=13.0.0",
+]
+
+[project.scripts]
+clipsmachine = "clipsmachine.cli:main"
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
