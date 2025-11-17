@@ -20,8 +20,8 @@ class SubtitleStyle:
     outline_width: int
     shadow_depth: int
     blur: int  # Blur/glow effect (0-100)
-    alignment: int  # 1-9, where 5 is center
-    margin_v: int  # Vertical margin from edge
+    alignment: int  # 1-9 (numpad layout): 1-3=bottom, 4-6=middle, 7-9=top; 2=bottom-center, 5=middle-center
+    margin_v: int  # Vertical margin: distance from bottom for bottom alignments, from center for middle
 
 
 # Predefined font presets
@@ -118,8 +118,8 @@ def create_subtitle_style(
     shadow_depth: int = 3,
     blur: int = 0,
     glow: bool = False,
-    alignment: int = 5,  # 5 = center of screen (both horizontal and vertical)
-    margin_v: int = 0,   # No margin for center alignment
+    alignment: int = 2,  # 2 = bottom-center, positioned up with margin_v
+    margin_v: int = 850,   # Distance from bottom to center the subtitles (for 1920px height)
 ) -> SubtitleStyle:
     """
     Create a SubtitleStyle configuration.
@@ -134,8 +134,8 @@ def create_subtitle_style(
         shadow_depth: Shadow depth (0-10)
         blur: Blur amount for glow effect (0-10)
         glow: Enable glow effect (adds blur + shadow)
-        alignment: Text alignment (1-9, where 5 is center)
-        margin_v: Vertical margin from edge
+        alignment: Text alignment (1-9: numpad layout, where 2 is bottom-center, 5 is middle-center)
+        margin_v: Vertical margin from edge (distance from bottom for bottom alignments)
 
     Returns:
         SubtitleStyle object
