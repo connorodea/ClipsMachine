@@ -9,6 +9,34 @@ from .subtitle_styles import get_available_fonts
 from .brand_templates import BrandTemplate
 
 
+def _build_style_config(args: argparse.Namespace) -> dict:
+    """Extract subtitle style configuration from CLI arguments."""
+    return {
+        'font_preset': getattr(args, 'font', 'arial'),
+        'font_size': getattr(args, 'font_size', 80),
+        'text_color': getattr(args, 'text_color', 'white'),
+        'outline_color': getattr(args, 'outline_color', 'black'),
+        'outline_width': getattr(args, 'outline_width', 6),
+        'shadow_depth': getattr(args, 'shadow_depth', 3),
+        'glow': getattr(args, 'glow', False),
+    }
+
+
+def _build_brand_template(args: argparse.Namespace) -> BrandTemplate | None:
+    """Extract brand template configuration from CLI arguments."""
+    if not getattr(args, 'logo', None):
+        return None
+
+    return BrandTemplate(
+        logo_path=args.logo,
+        logo_position=getattr(args, 'logo_position', 'top-right'),
+        logo_size=getattr(args, 'logo_size', 15),
+        logo_opacity=getattr(args, 'logo_opacity', 1.0),
+        intro_path=getattr(args, 'intro', None),
+        outro_path=getattr(args, 'outro', None),
+    )
+
+
 def cmd_run(args: argparse.Namespace) -> None:
     url = args.youtube_url
     video_id = extract_video_id(url)
@@ -21,30 +49,10 @@ def cmd_run(args: argparse.Namespace) -> None:
     enable_subtitles = not args.skip_subtitles
     subtitle_type = args.subtitle_type if hasattr(args, 'subtitle_type') else "transcription"
 
-    # Build subtitle style config from args
-    style_config = {
-        'font_preset': getattr(args, 'font', 'arial'),
-        'font_size': getattr(args, 'font_size', 80),
-        'text_color': getattr(args, 'text_color', 'white'),
-        'outline_color': getattr(args, 'outline_color', 'black'),
-        'outline_width': getattr(args, 'outline_width', 6),
-        'shadow_depth': getattr(args, 'shadow_depth', 3),
-        'glow': getattr(args, 'glow', False),
-    }
-
+    # Build configuration from CLI arguments
+    style_config = _build_style_config(args)
     aspect_ratio = getattr(args, 'aspect_ratio', '9:16')
-
-    # Build brand template from args
-    brand_template = None
-    if getattr(args, 'logo', None):
-        brand_template = BrandTemplate(
-            logo_path=args.logo,
-            logo_position=getattr(args, 'logo_position', 'top-right'),
-            logo_size=getattr(args, 'logo_size', 15),
-            logo_opacity=getattr(args, 'logo_opacity', 1.0),
-            intro_path=getattr(args, 'intro', None),
-            outro_path=getattr(args, 'outro', None),
-        )
+    brand_template = _build_brand_template(args)
 
     clips = process_video(
         url,
@@ -91,30 +99,10 @@ def cmd_clip_only(args: argparse.Namespace) -> None:
     enable_subtitles = not args.skip_subtitles
     subtitle_type = args.subtitle_type if hasattr(args, 'subtitle_type') else "transcription"
 
-    # Build subtitle style config from args
-    style_config = {
-        'font_preset': getattr(args, 'font', 'arial'),
-        'font_size': getattr(args, 'font_size', 80),
-        'text_color': getattr(args, 'text_color', 'white'),
-        'outline_color': getattr(args, 'outline_color', 'black'),
-        'outline_width': getattr(args, 'outline_width', 6),
-        'shadow_depth': getattr(args, 'shadow_depth', 3),
-        'glow': getattr(args, 'glow', False),
-    }
-
+    # Build configuration from CLI arguments
+    style_config = _build_style_config(args)
     aspect_ratio = getattr(args, 'aspect_ratio', '9:16')
-
-    # Build brand template from args
-    brand_template = None
-    if getattr(args, 'logo', None):
-        brand_template = BrandTemplate(
-            logo_path=args.logo,
-            logo_position=getattr(args, 'logo_position', 'top-right'),
-            logo_size=getattr(args, 'logo_size', 15),
-            logo_opacity=getattr(args, 'logo_opacity', 1.0),
-            intro_path=getattr(args, 'intro', None),
-            outro_path=getattr(args, 'outro', None),
-        )
+    brand_template = _build_brand_template(args)
 
     process_video(
         url,

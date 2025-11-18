@@ -48,11 +48,12 @@ def transcribe_with_whisper(audio_path: str) -> Any:
     Returns:
         Transcription result object with word-level timestamps
     """
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
+    # Verify API key is set before creating client
+    if not os.getenv("OPENAI_API_KEY"):
         raise RuntimeError("OPENAI_API_KEY environment variable not set.")
 
-    client = OpenAI(api_key=api_key)
+    # OpenAI SDK automatically uses OPENAI_API_KEY environment variable
+    client = OpenAI()
 
     print(f"[whisper] Transcribing audio: {audio_path}")
 
@@ -274,7 +275,7 @@ def generate_whisper_subtitles_for_clip(
     # Clean up audio file
     try:
         os.remove(audio_path)
-    except:
-        pass
+    except OSError as e:
+        print(f"[whisper] WARNING: Failed to clean up audio file {audio_path}: {e}")
 
     return subtitle_path

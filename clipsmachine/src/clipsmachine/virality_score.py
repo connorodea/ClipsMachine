@@ -9,6 +9,7 @@ Analyzes clips to predict their potential virality based on:
 """
 
 import os
+import json
 from typing import Dict, Any
 from openai import OpenAI
 
@@ -41,8 +42,8 @@ def calculate_virality_score(
         - shareability: 0-100 score for share potential
         - insights: Text insights about why this score was given
     """
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
+    # Check if API key is set, return defaults if not
+    if not os.getenv("OPENAI_API_KEY"):
         return {
             "virality_score": 50,
             "hook_strength": 50,
@@ -51,7 +52,8 @@ def calculate_virality_score(
             "insights": "OpenAI API key not set - using default scores",
         }
 
-    client = OpenAI(api_key=api_key)
+    # OpenAI SDK automatically uses OPENAI_API_KEY environment variable
+    client = OpenAI()
 
     # Construct the prompt
     prompt = f"""You are an expert in viral short-form video content analysis. Analyze this video clip transcript and predict its virality potential.
@@ -96,8 +98,6 @@ Be critical but fair. Most clips should score 40-70. Only truly exceptional clip
             max_tokens=500,
             response_format={"type": "json_object"},
         )
-
-        import json
 
         result = json.loads(response.choices[0].message.content)
 

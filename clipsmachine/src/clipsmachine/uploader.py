@@ -1,5 +1,6 @@
 import os
 import time
+import json
 from typing import List, Dict, Any
 
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -42,6 +43,9 @@ def get_youtube_client():
         with open(TOKEN_FILE, "w") as token:
             token.write(creds.to_json())
 
+        # Set secure file permissions (owner read/write only)
+        os.chmod(TOKEN_FILE, 0o600)
+
     return build("youtube", "v3", credentials=creds)
 
 
@@ -53,7 +57,6 @@ def _load_manifest(video_id: str) -> List[Dict[str, Any]]:
     path = _manifest_path(video_id)
     if not os.path.exists(path):
         raise FileNotFoundError(f"Manifest not found at {path}")
-    import json
 
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)

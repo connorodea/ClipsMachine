@@ -34,11 +34,12 @@ def save_manifest(video_id: str, manifest: List[Dict[str, Any]]) -> None:
 
 
 def call_llm(prompt: str) -> str:
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
+    # OpenAI SDK automatically uses OPENAI_API_KEY environment variable
+    # Verify it's set before attempting to create client
+    if not os.getenv("OPENAI_API_KEY"):
         raise RuntimeError("OPENAI_API_KEY environment variable not set.")
 
-    client = OpenAI(api_key=api_key)
+    client = OpenAI()  # Uses environment variable automatically
 
     last_exc: Exception | None = None
     for attempt in range(1, MAX_LLM_RETRIES + 1):
