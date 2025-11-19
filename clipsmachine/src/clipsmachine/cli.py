@@ -9,6 +9,10 @@ from .subtitle_styles import get_available_fonts
 from .brand_templates import BrandTemplate
 from .multi_uploader import MultiPlatformUploader, print_platform_info
 from .platforms import get_all_platforms
+from .thumbnail_generator import ThumbnailGenerator
+from .cloud_storage import CloudStorageManager
+from .scheduler import PostScheduler, process_pending_posts
+from datetime import datetime, timedelta
 
 
 def _build_style_config(args: argparse.Namespace) -> dict:
@@ -157,6 +161,105 @@ def cmd_post(args: argparse.Namespace) -> None:
 def cmd_platforms(args: argparse.Namespace) -> None:
     """List all supported social media platforms."""
     print_platform_info()
+
+
+def cmd_thumbnails(args: argparse.Namespace) -> None:
+    """Generate thumbnails for all clips."""
+    generator = ThumbnailGenerator(
+        add_logo=args.logo is not None,
+        logo_path=args.logo
+    )
+
+    generator.generate_thumbnails_for_manifest(
+        video_id=args.video_id,
+        clips_output_root=OUTPUT_ROOT,
+        timestamp_offset=args.timestamp
+    )
+
+
+def cmd_cloud_upload(args: argparse.Namespace) -> None:
+    """Upload clips to cloud storage (S3 or Cloudinary)."""
+    manager = CloudStorageManager(provider=args.provider)
+
+    urls = manager.upload_clips_for_video(
+        video_id=args.video_id,
+        clips_output_root=OUTPUT_ROOT,
+        start_index=args.start_index,
+        max_clips=args.max_clips
+    )
+
+    print(f"\n[CloudUpload] Uploaded {len(urls)} clips")
+    for clip_idx, url_dict in urls.items():
+        print(f"  Clip #{clip_idx}: {url_dict['video']}")
+
+
+def cmd_schedule(args: argparse.Namespace) -> None:
+    """Schedule clips for automated posting."""
+    scheduler = PostScheduler()
+
+    # Parse start time
+    if args.start_time:
+        start_time = datetime.fromisoformat(args.start_time)
+    else:
+        # Default to 1 hour from now
+        start_time = datetime.now() + timedelta(hours=1)
+
+    # Parse platforms
+    platforms = args.platforms.split(',') if args.platforms else get_all_platforms()
+    platforms = [p.strip() for p in platforms]
+
+    post_ids = scheduler.schedule_batch(
+        video_id=args.video_id,
+        start_time=start_time,
+        interval_hours=args.interval,
+        platforms=platforms,
+        clips_output_root=OUTPUT_ROOT
+    )
+
+    print(f"\n[Schedule] Created {len(post_ids)} scheduled posts")
+    print(f"[Schedule] Starting at: {start_time}")
+    print(f"[Schedule] Interval: {args.interval} hours")
+    print(f"[Schedule] Platforms: {', '.join(platforms)}")
+
+
+def cmd_schedule_list(args: argparse.Namespace) -> None:
+    """List upcoming scheduled posts."""
+    scheduler = PostScheduler()
+    posts = scheduler.list_upcoming(limit=args.limit)
+
+    if not posts:
+        print("[Schedule] No upcoming posts")
+        return
+
+    print(f"\n[Schedule] Upcoming posts ({len(posts)}):\n")
+    for post in posts:
+        print(f"  #{post.id}: Clip {post.clip_index} → {post.platforms}")
+        print(f"    Scheduled: {post.scheduled_time}")
+        print(f"    Title: {post.title}")
+        print()
+
+
+def cmd_schedule_run(args: argparse.Namespace) -> None:
+    """Process pending scheduled posts (run this with cron)."""
+    scheduler = PostScheduler()
+    stats = process_pending_posts(
+        scheduler=scheduler,
+        clips_output_root=OUTPUT_ROOT,
+        dry_run=args.dry_run
+    )
+
+    print(f"\n[Schedule] Posted: {stats['posted']}, Failed: {stats['failed']}")
+
+
+def cmd_schedule_stats(args: argparse.Namespace) -> None:
+    """Show scheduling statistics."""
+    scheduler = PostScheduler()
+    stats = scheduler.get_stats()
+
+    print("\n[Schedule] Statistics:")
+    for status, count in stats.items():
+        print(f"  {status}: {count}")
+    print()
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -531,6 +634,110 @@ def build_parser() -> argparse.ArgumentParser:
         help="List all supported social media platforms and their status."
     )
     p_platforms.set_defaults(func=cmd_platforms)
+
+    # thumbnails - Generate thumbnails
+    p_thumbnails = subparsers.add_parser(
+        "thumbnails",
+        help="Generate thumbnails for all clips in a video."
+    )
+    p_thumbnails.add_argument("video_id", help="Video ID folder under clips_output/<video_id>/")
+    p_thumbnails.add_argument(
+        "--logo",
+        type=str,
+        default=None,
+        help="Path to logo image to add as watermark."
+    )
+    p_thumbnails.add_argument(
+        "--timestamp",
+        type=float,
+        default=3.0,
+        help="Seconds into clip to extract frame (default: 3.0)."
+    )
+    p_thumbnails.set_defaults(func=cmd_thumbnails)
+
+    # cloud-upload - Upload to cloud storage
+    p_cloud = subparsers.add_parser(
+        "cloud-upload",
+        help="Upload clips to cloud storage (S3 or Cloudinary)."
+    )
+    p_cloud.add_argument("video_id", help="Video ID folder")
+    p_cloud.add_argument(
+        "--provider",
+        choices=["s3", "cloudinary"],
+        default="s3",
+        help="Cloud storage provider (default: s3)."
+    )
+    p_cloud.add_argument(
+        "--start-index",
+        type=int,
+        default=1,
+        help="Start from this clip index."
+    )
+    p_cloud.add_argument(
+        "--max-clips",
+        type=int,
+        default=None,
+        help="Maximum clips to upload."
+    )
+    p_cloud.set_defaults(func=cmd_cloud_upload)
+
+    # schedule - Schedule automated posting
+    p_schedule = subparsers.add_parser(
+        "schedule",
+        help="Schedule clips for automated posting at optimal times."
+    )
+    p_schedule.add_argument("video_id", help="Video ID folder")
+    p_schedule.add_argument(
+        "--start-time",
+        type=str,
+        default=None,
+        help="Start time (ISO format: 2024-01-01T12:00:00). Default: 1 hour from now."
+    )
+    p_schedule.add_argument(
+        "--interval",
+        type=int,
+        default=12,
+        help="Hours between posts (default: 12)."
+    )
+    p_schedule.add_argument(
+        "--platforms",
+        type=str,
+        default=None,
+        help="Comma-separated platforms (default: all)."
+    )
+    p_schedule.set_defaults(func=cmd_schedule)
+
+    # schedule-list - List scheduled posts
+    p_schedule_list = subparsers.add_parser(
+        "schedule-list",
+        help="List upcoming scheduled posts."
+    )
+    p_schedule_list.add_argument(
+        "--limit",
+        type=int,
+        default=20,
+        help="Maximum posts to show (default: 20)."
+    )
+    p_schedule_list.set_defaults(func=cmd_schedule_list)
+
+    # schedule-run - Process pending posts
+    p_schedule_run = subparsers.add_parser(
+        "schedule-run",
+        help="Process pending scheduled posts (run with cron)."
+    )
+    p_schedule_run.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would be posted without actually posting."
+    )
+    p_schedule_run.set_defaults(func=cmd_schedule_run)
+
+    # schedule-stats - Show statistics
+    p_schedule_stats = subparsers.add_parser(
+        "schedule-stats",
+        help="Show scheduling statistics."
+    )
+    p_schedule_stats.set_defaults(func=cmd_schedule_stats)
 
     return parser
 
