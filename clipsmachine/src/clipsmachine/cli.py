@@ -7,6 +7,8 @@ from .uploader import upload_clips_for_video
 from .config import OUTPUT_ROOT
 from .subtitle_styles import get_available_fonts
 from .brand_templates import BrandTemplate
+from .multi_uploader import MultiPlatformUploader, print_platform_info
+from .platforms import get_all_platforms
 
 
 def _build_style_config(args: argparse.Namespace) -> dict:
@@ -132,6 +134,29 @@ def cmd_upload(args: argparse.Namespace) -> None:
         max_clips=args.max_clips,
         sleep_between=args.sleep_between_uploads,
     )
+
+
+def cmd_post(args: argparse.Namespace) -> None:
+    """Post clips to multiple social media platforms."""
+    platforms = args.platforms.split(',') if args.platforms else get_all_platforms()
+    platforms = [p.strip() for p in platforms]
+
+    uploader = MultiPlatformUploader(platforms)
+
+    uploader.upload_clips_for_video(
+        video_id=args.video_id,
+        platforms=platforms,
+        clips_output_root=OUTPUT_ROOT,
+        start_index=args.start_index,
+        max_clips=args.max_clips,
+        parallel_platforms=not args.sequential,
+        privacy_status=getattr(args, 'privacy', 'public'),
+    )
+
+
+def cmd_platforms(args: argparse.Namespace) -> None:
+    """List all supported social media platforms."""
+    print_platform_info()
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -462,6 +487,50 @@ def build_parser() -> argparse.ArgumentParser:
         help="Seconds between uploads (default: 5).",
     )
     p_upload.set_defaults(func=cmd_upload)
+
+    # post - Multi-platform posting
+    p_post = subparsers.add_parser(
+        "post",
+        help="Post clips to multiple social media platforms (YouTube, Instagram, TikTok, etc.)"
+    )
+    p_post.add_argument("video_id", help="Video ID folder under clips_output/<video_id>/")
+    p_post.add_argument(
+        "--platforms",
+        type=str,
+        default=None,
+        help="Comma-separated list of platforms: youtube,instagram,tiktok,twitter,linkedin,facebook (default: all)",
+    )
+    p_post.add_argument(
+        "--privacy",
+        type=str,
+        default="public",
+        help="Privacy setting for platforms that support it (default: public).",
+    )
+    p_post.add_argument(
+        "--start-index",
+        type=int,
+        default=1,
+        help="Start from this clip_index (1-based).",
+    )
+    p_post.add_argument(
+        "--max-clips",
+        type=int,
+        default=None,
+        help="Limit number of clips to post.",
+    )
+    p_post.add_argument(
+        "--sequential",
+        action="store_true",
+        help="Upload to platforms sequentially instead of in parallel.",
+    )
+    p_post.set_defaults(func=cmd_post)
+
+    # platforms - List supported platforms
+    p_platforms = subparsers.add_parser(
+        "platforms",
+        help="List all supported social media platforms and their status."
+    )
+    p_platforms.set_defaults(func=cmd_platforms)
 
     return parser
 
