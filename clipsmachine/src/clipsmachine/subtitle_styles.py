@@ -24,55 +24,56 @@ class SubtitleStyle:
     margin_v: int  # Vertical margin: distance from bottom for bottom alignments, from center for middle
 
 
-# Predefined font presets
+# Predefined font presets - optimized for short-form vertical video
+# Ordered by popularity and readability on mobile devices
 FONT_PRESETS = {
-    "impact": {
-        "name": "Impact",
-        "description": "Bold, high-impact font (great for motivational content)",
-        "font_name": "Impact",
-        "bold": -1,
-    },
-    "arial": {
-        "name": "Arial Black",
-        "description": "Clean, readable font (default)",
-        "font_name": "Arial Black",
-        "bold": -1,
-    },
     "montserrat": {
         "name": "Montserrat",
-        "description": "Modern, professional font (great for tech/business)",
+        "description": "🏆 Modern, clean font - perfect for business/tech content (DEFAULT - most popular)",
         "font_name": "Montserrat",
-        "bold": -1,
-    },
-    "bebas": {
-        "name": "Bebas Neue",
-        "description": "Tall, condensed font (great for headlines)",
-        "font_name": "Bebas Neue",
-        "bold": -1,
-    },
-    "bangers": {
-        "name": "Bangers",
-        "description": "Comic-style, energetic font (great for entertainment)",
-        "font_name": "Bangers",
-        "bold": 0,
-    },
-    "oswald": {
-        "name": "Oswald",
-        "description": "Bold, condensed font (great for dramatic content)",
-        "font_name": "Oswald",
-        "bold": -1,
-    },
-    "roboto": {
-        "name": "Roboto",
-        "description": "Clean, modern font (great for tech)",
-        "font_name": "Roboto",
         "bold": -1,
     },
     "poppins": {
         "name": "Poppins",
-        "description": "Friendly, rounded font (great for lifestyle)",
+        "description": "😊 Friendly, rounded font - great for lifestyle, wellness, casual content",
         "font_name": "Poppins",
         "bold": -1,
+    },
+    "impact": {
+        "name": "Impact",
+        "description": "💥 Bold, high-impact - perfect for motivational, fitness, sports content",
+        "font_name": "Impact",
+        "bold": -1,
+    },
+    "bebas": {
+        "name": "Bebas Neue",
+        "description": "📰 Tall, condensed - excellent for news, headlines, dramatic content",
+        "font_name": "Bebas Neue",
+        "bold": -1,
+    },
+    "roboto": {
+        "name": "Roboto",
+        "description": "🤖 Ultra-clean, modern - ideal for tech, science, education content",
+        "font_name": "Roboto",
+        "bold": -1,
+    },
+    "oswald": {
+        "name": "Oswald",
+        "description": "⚡ Bold, condensed - great for action, gaming, high-energy content",
+        "font_name": "Oswald",
+        "bold": -1,
+    },
+    "arial": {
+        "name": "Arial Black",
+        "description": "📺 Classic, reliable - universal readability, traditional content",
+        "font_name": "Arial Black",
+        "bold": -1,
+    },
+    "bangers": {
+        "name": "Bangers",
+        "description": "🎮 Comic-style, playful - perfect for gaming, entertainment, memes",
+        "font_name": "Bangers",
+        "bold": 0,
     },
 }
 
@@ -109,13 +110,13 @@ def rgb_to_ass_color(r: int, g: int, b: int, alpha: int = 0) -> str:
 
 
 def create_subtitle_style(
-    font_preset: str = "arial",
-    font_size: int = 80,
+    font_preset: str = "montserrat",  # Modern, clean default font
+    font_size: int = 65,  # Reduced from 80 for better readability
     text_color: str = "white",
     outline_color: str = "black",
     shadow_color: str = "black",
-    outline_width: int = 6,
-    shadow_depth: int = 3,
+    outline_width: int = 5,  # Slightly reduced for cleaner look
+    shadow_depth: int = 2,  # Reduced shadow for modern aesthetic
     blur: int = 0,
     glow: bool = False,
     alignment: int = 2,  # 2 = bottom-center, positioned up with margin_v

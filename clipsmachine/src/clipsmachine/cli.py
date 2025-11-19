@@ -210,14 +210,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_run.add_argument(
         "--font",
         choices=list(get_available_fonts().keys()),
-        default="arial",
-        help="Font preset: impact, arial, montserrat, bebas, bangers, oswald, roboto, poppins (default: arial).",
+        default="montserrat",
+        help="Font preset: impact, arial, montserrat, bebas, bangers, oswald, roboto, poppins (default: montserrat).",
     )
     p_run.add_argument(
         "--font-size",
         type=int,
-        default=80,
-        help="Font size in pixels (default: 80).",
+        default=65,
+        help="Font size in pixels (default: 65 - optimized for readability).",
     )
     p_run.add_argument(
         "--text-color",
@@ -234,14 +234,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_run.add_argument(
         "--outline-width",
         type=int,
-        default=6,
-        help="Outline thickness in pixels (default: 6).",
+        default=5,
+        help="Outline thickness in pixels (default: 5 - balanced for clarity).",
     )
     p_run.add_argument(
         "--shadow-depth",
         type=int,
-        default=3,
-        help="Shadow depth in pixels (default: 3).",
+        default=2,
+        help="Shadow depth in pixels (default: 2 - subtle modern look).",
     )
     p_run.add_argument(
         "--glow",
@@ -313,14 +313,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_clip.add_argument(
         "--font",
         choices=list(get_available_fonts().keys()),
-        default="arial",
-        help="Font preset: impact, arial, montserrat, bebas, bangers, oswald, roboto, poppins (default: arial).",
+        default="montserrat",
+        help="Font preset: impact, arial, montserrat, bebas, bangers, oswald, roboto, poppins (default: montserrat).",
     )
     p_clip.add_argument(
         "--font-size",
         type=int,
-        default=80,
-        help="Font size in pixels (default: 80).",
+        default=65,
+        help="Font size in pixels (default: 65 - optimized for readability).",
     )
     p_clip.add_argument(
         "--text-color",
@@ -337,14 +337,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_clip.add_argument(
         "--outline-width",
         type=int,
-        default=6,
-        help="Outline thickness in pixels (default: 6).",
+        default=5,
+        help="Outline thickness in pixels (default: 5 - balanced for clarity).",
     )
     p_clip.add_argument(
         "--shadow-depth",
         type=int,
-        default=3,
-        help="Shadow depth in pixels (default: 3).",
+        default=2,
+        help="Shadow depth in pixels (default: 2 - subtle modern look).",
     )
     p_clip.add_argument(
         "--glow",
