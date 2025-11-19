@@ -184,15 +184,20 @@ def enhance_manifest(
 
     print(f"[metadata] Enhancing {len(to_update)} clips for video {video_id}.")
 
+    # Build index map for O(1) lookups instead of O(n) searches
+    clip_index_to_position = {
+        int(entry.get("clip_index", 0)): i
+        for i, entry in enumerate(manifest)
+    }
+
     for clip in to_update:
         idx = int(clip.get("clip_index", 0))
         print(f"[metadata] Enhancing clip #{idx}…")
         enhanced = enhance_single_clip(clip, channel_positioning, base_tags, enable_virality_score)
 
-        for i, entry in enumerate(manifest):
-            if int(entry.get("clip_index", 0)) == idx:
-                manifest[i] = enhanced
-                break
+        # O(1) lookup instead of O(n) search
+        if idx in clip_index_to_position:
+            manifest[clip_index_to_position[idx]] = enhanced
 
         time.sleep(LLM_SLEEP_BETWEEN_CALLS)
 

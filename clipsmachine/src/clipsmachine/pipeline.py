@@ -4,11 +4,15 @@ import json
 import subprocess
 import time
 from dataclasses import dataclass, asdict
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Callable, TypeVar
+from functools import wraps
 
 from tqdm import tqdm
 from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
 import yt_dlp
+
+# Type variable for retry decorator
+T = TypeVar('T')
 
 from .progress import (
     console,
@@ -39,6 +43,49 @@ from .brand_templates import (
     build_concat_file_list,
     validate_template,
 )
+
+
+def retry_on_failure(max_attempts: int = 3, delay: float = 2.0, backoff: float = 2.0):
+    """
+    Decorator to retry a function on failure with exponential backoff.
+
+    Args:
+        max_attempts: Maximum number of attempts
+        delay: Initial delay between retries in seconds
+        backoff: Multiplier for delay after each retry
+
+    Example:
+        @retry_on_failure(max_attempts=3, delay=1.0, backoff=2.0)
+        def download_file(url):
+            # Will retry up to 3 times with delays: 1s, 2s, 4s
+            ...
+    """
+    def decorator(func: Callable[..., T]) -> Callable[..., T]:
+        @wraps(func)
+        def wrapper(*args, **kwargs) -> T:
+            current_delay = delay
+            last_exception = None
+
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    last_exception = e
+                    if attempt == max_attempts:
+                        # Last attempt failed, raise the exception
+                        raise
+
+                    print(f"[retry] {func.__name__} failed (attempt {attempt}/{max_attempts}): {e}")
+                    print(f"[retry] Retrying in {current_delay:.1f}s...")
+                    time.sleep(current_delay)
+                    current_delay *= backoff
+
+            # This should never be reached, but just in case
+            raise last_exception
+
+        return wrapper
+    return decorator
+
 
 YDL_OPTS = {
     "format": "mp4/bestaudio/best",
@@ -88,6 +135,7 @@ def human_time(seconds: float) -> str:
     return f"{m:02d}:{s:02d}"
 
 
+@retry_on_failure(max_attempts=3, delay=2.0, backoff=2.0)
 def download_video(url: str, workdir: str) -> str:
     ensure_dir(workdir)
     video_id = extract_video_id(url)
@@ -103,6 +151,7 @@ def download_video(url: str, workdir: str) -> str:
     return os.path.join(workdir, f"{video_id}.{ext}")
 
 
+@retry_on_failure(max_attempts=3, delay=1.0, backoff=2.0)
 def get_transcript(video_id: str) -> List[Dict[str, Any]]:
     try:
         api = YouTubeTranscriptApi()
@@ -479,7 +528,10 @@ def process_video(
                         )
 
                         # Remove temp clip, will regenerate with subtitles
-                        os.remove(temp_clip_path)
+                        try:
+                            os.remove(temp_clip_path)
+                        except OSError as e:
+                            print(f"[pipeline] Warning: Could not remove temp file {temp_clip_path}: {e}")
 
                     elif subtitle_type == "both":
                         # Generate both types - this is advanced, for now just use transcription
@@ -495,10 +547,17 @@ def process_video(
                             style_config=style_config,
                         )
 
-                        os.remove(temp_clip_path)
+                        try:
+                            os.remove(temp_clip_path)
+                        except OSError as e:
+                            print(f"[pipeline] Warning: Could not remove temp file {temp_clip_path}: {e}")
 
-                except Exception as e:
+                except (FileNotFoundError, RuntimeError, OSError, subprocess.CalledProcessError) as e:
                     print(f"[pipeline] Warning: Subtitle generation failed for clip #{idx}: {e}")
+                    subtitle_file = None
+                except Exception as e:
+                    # Unexpected error - log and continue but warn more severely
+                    print(f"[pipeline] ERROR: Unexpected error during subtitle generation for clip #{idx}: {type(e).__name__}: {e}")
                     subtitle_file = None
 
             # Cut the clip with optional subtitles

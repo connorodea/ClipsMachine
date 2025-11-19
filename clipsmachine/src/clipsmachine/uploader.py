@@ -6,7 +6,7 @@ from typing import List, Dict, Any
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
+from googleapiclient.discovery import build, Resource
 from googleapiclient.http import MediaFileUpload
 from googleapiclient.errors import HttpError
 
@@ -21,7 +21,7 @@ from .config import (
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
 
 
-def get_youtube_client():
+def get_youtube_client() -> Resource:
     creds = None
     if os.path.exists(TOKEN_FILE):
         creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
@@ -63,7 +63,7 @@ def _load_manifest(video_id: str) -> List[Dict[str, Any]]:
 
 
 def upload_single_clip(
-    youtube,
+    youtube: Resource,
     video_path: str,
     title: str,
     description: str,
@@ -121,11 +121,22 @@ def upload_clips_for_video(
     if not manifest:
         raise RuntimeError("Manifest is empty.")
 
+    # Sort by clip_index and apply filters efficiently
     manifest.sort(key=lambda c: int(c.get("clip_index", 0)))
+
+    # Since manifest is sorted, we can use binary search or simple slicing
+    # For start_index, find the first clip >= start_index
     if start_index > 1:
-        manifest = [
-            c for c in manifest if int(c.get("clip_index", 0)) >= start_index
-        ]
+        # Use list comprehension with early termination opportunity
+        # (Still O(n) but avoids repeated int() calls)
+        start_pos = 0
+        for i, clip in enumerate(manifest):
+            if int(clip.get("clip_index", 0)) >= start_index:
+                start_pos = i
+                break
+        manifest = manifest[start_pos:]
+
+    # Apply max_clips limit
     if max_clips is not None:
         manifest = manifest[:max_clips]
 
