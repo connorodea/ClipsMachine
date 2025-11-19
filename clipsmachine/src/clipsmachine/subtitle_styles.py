@@ -111,14 +111,14 @@ def rgb_to_ass_color(r: int, g: int, b: int, alpha: int = 0) -> str:
 
 def create_subtitle_style(
     font_preset: str = "montserrat",  # Modern, clean default font
-    font_size: int = 65,  # Reduced from 80 for better readability
+    font_size: int = 68,  # Optimized size for impact and readability
     text_color: str = "white",
     outline_color: str = "black",
     shadow_color: str = "black",
-    outline_width: int = 5,  # Slightly reduced for cleaner look
-    shadow_depth: int = 2,  # Reduced shadow for modern aesthetic
-    blur: int = 0,
-    glow: bool = False,
+    outline_width: int = 7,  # Thicker outline for better pop and contrast
+    shadow_depth: int = 3,  # Deeper shadow for 3D effect
+    blur: int = 1,  # Slight blur for soft glow effect
+    glow: bool = True,  # Enable glow by default for modern aesthetic
     alignment: int = 2,  # 2 = bottom-center, positioned up with margin_v
     margin_v: int = 850,   # Distance from bottom to center the subtitles (for 1920px height)
 ) -> SubtitleStyle:

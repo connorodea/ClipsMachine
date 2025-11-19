@@ -12,13 +12,13 @@ from .brand_templates import BrandTemplate
 def _build_style_config(args: argparse.Namespace) -> dict:
     """Extract subtitle style configuration from CLI arguments."""
     return {
-        'font_preset': getattr(args, 'font', 'arial'),
-        'font_size': getattr(args, 'font_size', 80),
+        'font_preset': getattr(args, 'font', 'montserrat'),
+        'font_size': getattr(args, 'font_size', 68),
         'text_color': getattr(args, 'text_color', 'white'),
         'outline_color': getattr(args, 'outline_color', 'black'),
-        'outline_width': getattr(args, 'outline_width', 6),
+        'outline_width': getattr(args, 'outline_width', 7),
         'shadow_depth': getattr(args, 'shadow_depth', 3),
-        'glow': getattr(args, 'glow', False),
+        'glow': getattr(args, 'glow', True),
     }
 
 
@@ -216,8 +216,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_run.add_argument(
         "--font-size",
         type=int,
-        default=65,
-        help="Font size in pixels (default: 65 - optimized for readability).",
+        default=68,
+        help="Font size in pixels (default: 68 - optimized for impact and readability).",
     )
     p_run.add_argument(
         "--text-color",
@@ -234,19 +234,20 @@ def build_parser() -> argparse.ArgumentParser:
     p_run.add_argument(
         "--outline-width",
         type=int,
-        default=5,
-        help="Outline thickness in pixels (default: 5 - balanced for clarity).",
+        default=7,
+        help="Outline thickness in pixels (default: 7 - thicker for better pop and contrast).",
     )
     p_run.add_argument(
         "--shadow-depth",
         type=int,
-        default=2,
-        help="Shadow depth in pixels (default: 2 - subtle modern look).",
+        default=3,
+        help="Shadow depth in pixels (default: 3 - deeper for 3D effect).",
     )
     p_run.add_argument(
-        "--glow",
-        action="store_true",
-        help="Enable glow effect on text (adds blur).",
+        "--no-glow",
+        action="store_false",
+        dest="glow",
+        help="Disable glow effect on text (enabled by default for modern aesthetic).",
     )
     p_run.add_argument(
         "--aspect-ratio",
@@ -319,8 +320,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_clip.add_argument(
         "--font-size",
         type=int,
-        default=65,
-        help="Font size in pixels (default: 65 - optimized for readability).",
+        default=68,
+        help="Font size in pixels (default: 68 - optimized for impact and readability).",
     )
     p_clip.add_argument(
         "--text-color",
@@ -337,19 +338,20 @@ def build_parser() -> argparse.ArgumentParser:
     p_clip.add_argument(
         "--outline-width",
         type=int,
-        default=5,
-        help="Outline thickness in pixels (default: 5 - balanced for clarity).",
+        default=7,
+        help="Outline thickness in pixels (default: 7 - thicker for better pop and contrast).",
     )
     p_clip.add_argument(
         "--shadow-depth",
         type=int,
-        default=2,
-        help="Shadow depth in pixels (default: 2 - subtle modern look).",
+        default=3,
+        help="Shadow depth in pixels (default: 3 - deeper for 3D effect).",
     )
     p_clip.add_argument(
-        "--glow",
-        action="store_true",
-        help="Enable glow effect on text (adds blur).",
+        "--no-glow",
+        action="store_false",
+        dest="glow",
+        help="Disable glow effect on text (enabled by default for modern aesthetic).",
     )
     p_clip.add_argument(
         "--aspect-ratio",
